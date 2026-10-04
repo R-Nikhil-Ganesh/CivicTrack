@@ -1,25 +1,46 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import MapPicker from '../components/MapPicker';
-import { PlusCircle, Image, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
+import { PlusCircle, Image, MapPin, AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
 
 const CATEGORIES = ['Roads', 'Water Supply', 'Waste Management', 'Electricity', 'Other'];
 const PRIORITIES = ['Low', 'Medium', 'High', 'Emergency'];
 
 const ReportIssue = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const initialCategory = searchParams.get('category') || 'Roads';
+  const initialPriority = searchParams.get('priority') || 'Medium';
+  const initialTitle = searchParams.get('title') || '';
 
   const [formData, setFormData] = useState({
-    title: '',
-    category: 'Roads',
-    priority: 'Medium',
+    title: initialTitle,
+    category: CATEGORIES.includes(initialCategory) ? initialCategory : 'Roads',
+    priority: PRIORITIES.includes(initialPriority) ? initialPriority : 'Medium',
     description: '',
     address: '',
     latitude: 12.9716,
     longitude: 77.5946,
     imageUrl: '',
   });
+
+  // Sync if search params change dynamically
+  useEffect(() => {
+    const cat = searchParams.get('category');
+    const pri = searchParams.get('priority');
+    const tit = searchParams.get('title');
+
+    if (cat || pri || tit) {
+      setFormData((prev) => ({
+        ...prev,
+        category: cat && CATEGORIES.includes(cat) ? cat : prev.category,
+        priority: pri && PRIORITIES.includes(pri) ? pri : prev.priority,
+        title: tit || prev.title,
+      }));
+    }
+  }, [searchParams]);
 
   const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -117,6 +138,12 @@ const ReportIssue = () => {
               <p style={{ fontSize: '0.875rem', color: '#64748b' }}>
                 Your report will be automatically routed to the responsible municipal department.
               </p>
+              {searchParams.get('category') && (
+                <div style={{ marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderRadius: '6px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', fontSize: '0.8rem', fontWeight: 600 }}>
+                  <Sparkles size={14} />
+                  <span>Pre-filled via CivicBot: {formData.category} ({formData.priority} Priority)</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

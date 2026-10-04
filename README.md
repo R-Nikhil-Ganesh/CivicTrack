@@ -13,15 +13,16 @@ Citizens frequently struggle with lack of transparency when reporting civic issu
 
 **CivicTrack** bridges the gap between citizens and municipal authorities by providing:
 1. **Interactive GIS Mapping:** OpenStreetMap + Leaflet for pin-drop location reporting (100% free, zero Google API keys or billing required).
-2. **Transparent Audit Timeline:** Every complaint features an immutable status history log showing when triage occurred and department action was taken.
-3. **Department Workflow Routing:** Automated classification and department assignment (`Roads`, `Water Supply`, `Waste Management`, `Electricity`).
-4. **Community Upvoting:** Citizens can upvote nearby complaints to prioritize critical issues without duplicate tickets.
+2. **CivicBot AI & Voice Assistant:** 24/7 intelligent conversational assistant with voice input (Web Speech API) and text-to-speech (TTS), automated department grievance categorization, and 1-click pre-filled complaint submission.
+3. **Transparent Audit Timeline:** Every complaint features an immutable status history log showing when triage occurred and department action was taken.
+4. **Department Workflow Routing:** Automated classification and department assignment (`Roads`, `Water Supply`, `Waste Management`, `Electricity`).
+5. **Community Upvoting:** Citizens can upvote nearby complaints to prioritize critical issues without duplicate tickets.
 
 ---
 
 ## 🛠️ 2. Tech Stack
 
-- **Frontend:** React (Vite), React Router v6, Axios, Leaflet (OpenStreetMap tiles), Lucide Icons, Modern CSS.
+- **Frontend:** React (Vite), React Router v6, Axios, Leaflet (OpenStreetMap tiles), Lucide Icons, Web Speech API (STT & TTS), Modern CSS.
 - **Backend:** Node.js, Express.js (ES Modules, RESTful APIs, MVC architecture).
 - **Database:** MongoDB & Mongoose ODM.
 - **Authentication:** JSON Web Tokens (JWT) & Bcrypt password hashing.
@@ -59,6 +60,7 @@ fsd/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── Navbar.jsx        # Navigation with role-based links
+│   │   │   ├── CivicChatbot.jsx  # Floating AI & Voice municipal chatbot
 │   │   │   ├── StatusBadge.jsx   # Status indicator badge
 │   │   │   ├── IssueCard.jsx     # Reusable preview card with upvotes
 │   │   │   ├── MapPicker.jsx     # Leaflet map to click & pin coordinates
@@ -66,6 +68,8 @@ fsd/
 │   │   │   └── ProtectedRoute.jsx# Auth & role route guard
 │   │   ├── context/
 │   │   │   └── AuthContext.jsx   # Global user auth state
+│   │   ├── utils/
+│   │   │   └── civicKnowledge.js # Municipal NLP intent engine, SLAs & helplines
 │   │   ├── pages/
 │   │   │   ├── Home.jsx          # City GIS map & filterable issue feed
 │   │   │   ├── Login.jsx         # Sign in with 1-click viva demo credentials
@@ -76,8 +80,8 @@ fsd/
 │   │   │   └── AdminDashboard.jsx# Department officer triage & analytics
 │   │   ├── services/
 │   │   │   └── api.js            # Axios client with JWT interceptor
-│   │   ├── App.jsx               # Routes setup
-│   │   ├── index.css             # Cohesive modern styling
+│   │   ├── App.jsx               # Routes setup & global CivicBot mounting
+│   │   ├── index.css             # Cohesive modern styling & CivicBot UI
 │   │   └── main.jsx
 │   ├── package.json
 │   └── vite.config.js
@@ -148,3 +152,6 @@ npm run dev --prefix frontend
    - Routes define endpoints and apply auth middleware.
    - Controllers handle business logic and database queries.
    - Models encapsulate Mongoose schemas and pre-save hooks.
+4. **CivicBot Voice & Municipal Triage Engine:**
+   - Employs browser-native Web Speech API (`SpeechRecognition` + `SpeechSynthesis`), requiring zero external cloud subscription costs or API keys.
+   - Deterministic keyword and intent classification reliably categorizes complaints and pre-fills the grievance submission form with suggested priorities and department routing.
