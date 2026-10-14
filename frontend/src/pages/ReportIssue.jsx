@@ -2,7 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import MapPicker from '../components/MapPicker';
-import { PlusCircle, Image, MapPin, AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
+import exifr from 'exifr';
+import {
+  PlusCircle,
+  Image,
+  MapPin,
+  AlertCircle,
+  CheckCircle,
+  Sparkles,
+  Navigation,
+  Compass,
+  Calendar,
+  X,
+  Info,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  HelpCircle
+} from 'lucide-react';
 
 const CATEGORIES = ['Roads', 'Water Supply', 'Waste Management', 'Electricity', 'Other'];
 const PRIORITIES = ['Low', 'Medium', 'High', 'Emergency'];
@@ -43,6 +60,9 @@ const ReportIssue = () => {
   }, [searchParams]);
 
   const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [exifStatus, setExifStatus] = useState(null); // 'scanning' | 'found' | 'not_found'
+  const [exifData, setExifData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -63,10 +83,163 @@ const ReportIssue = () => {
     }));
   };
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setImageFile(e.target.files[0]);
+  const [showExifDetails, setShowExifDetails] = useState(false);
+
+  const convertDMSToDD = (dms, ref) => {
+    if (typeof dms === 'number') {
+      return ref === 'S' || ref === 'W' ? -Math.abs(dms) : Math.abs(dms);
     }
+    if (Array.isArray(dms) && dms.length >= 3) {
+      const deg = Number(dms[0]) || 0;
+      const min = Number(dms[1]) || 0;
+      const sec = Number(dms[2]) || 0;
+      let dd = deg + min / 60 + sec / 3600;
+      if (ref === 'S' || ref === 'W') {
+        dd = -dd;
+      }
+      return Number(dd.toFixed(6));
+    }
+    return null;
+  };
+
+  const parseXmpCoord = (val) => {
+    if (typeof val === 'number') return val;
+    if (!val || typeof val !== 'string') return null;
+    const match = val.match(/([0-9.]+)[, ]+([0-9.]+)(?:[, ]+([0-9.]+))?\s*([NSEW])?/i);
+    if (match) {
+      const deg = parseFloat(match[1]) || 0;
+      const min = parseFloat(match[2]) || 0;
+      const sec = parseFloat(match[3]) || 0;
+      const ref = match[4] ? match[4].toUpperCase() : null;
+      let dd = deg + min / 60 + sec / 3600;
+      if (ref === 'S' || ref === 'W') dd = -dd;
+      return Number(dd.toFixed(6));
+    }
+    const simpleNum = parseFloat(val);
+    return isNaN(simpleNum) ? null : simpleNum;
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setExifStatus('scanning');
+    setExifData(null);
+    setShowExifDetails(false);
+
+    try {
+      // 1. Read the complete file into an ArrayBuffer to bypass browser chunk cutoffs
+      const buffer = await file.arrayBuffer();
+
+      // 2. Parse comprehensive EXIF, GPS, TIFF, and XMP metadata with full multi-segment support
+      const tags = await exifr.parse(buffer, {
+        tiff: true,
+        xmp: true,
+        gps: true,
+        jfif: true,
+        multiSegment: true,
+        mergeOutput: true,
+        chunked: false,
+      }).catch(() => null);
+
+      let lat = null;
+      let lng = null;
+
+      // Approach A: Direct revived latitude/longitude
+      if (typeof tags?.latitude === 'number' && typeof tags?.longitude === 'number') {
+        lat = Number(tags.latitude.toFixed(6));
+        lng = Number(tags.longitude.toFixed(6));
+      }
+      // Approach B: Unmerged gps object
+      else if (typeof tags?.gps?.latitude === 'number' && typeof tags?.gps?.longitude === 'number') {
+        lat = Number(tags.gps.latitude.toFixed(6));
+        lng = Number(tags.gps.longitude.toFixed(6));
+      }
+      // Approach C: Raw GPS tags in DMS (Degrees, Minutes, Seconds)
+      else if (tags?.GPSLatitude && tags?.GPSLongitude) {
+        lat = convertDMSToDD(tags.GPSLatitude, tags.GPSLatitudeRef || 'N');
+        lng = convertDMSToDD(tags.GPSLongitude, tags.GPSLongitudeRef || 'E');
+      }
+      // Approach D: XMP camera coordinates
+      else if (tags?.['exif:GPSLatitude'] && tags?.['exif:GPSLongitude']) {
+        lat = parseXmpCoord(tags['exif:GPSLatitude']);
+        lng = parseXmpCoord(tags['exif:GPSLongitude']);
+      }
+
+      // Approach E: Secondary direct exifr.gps fallback
+      if ((lat === null || lng === null) && buffer) {
+        try {
+          const directGps = await exifr.gps(buffer);
+          if (typeof directGps?.latitude === 'number' && typeof directGps?.longitude === 'number') {
+            lat = Number(directGps.latitude.toFixed(6));
+            lng = Number(directGps.longitude.toFixed(6));
+          }
+        } catch (fallbackErr) {
+          console.warn('Direct GPS fallback attempt:', fallbackErr);
+        }
+      }
+
+      const cameraModel = [tags?.Make, tags?.Model].filter(Boolean).join(' ') || null;
+      const dateTaken = tags?.DateTimeOriginal || tags?.CreateDate || tags?.ModifyDate || null;
+      const formattedDate = dateTaken ? new Date(dateTaken).toLocaleString() : null;
+      const hasOtherMetadata = Boolean(cameraModel || dateTaken || tags?.ExifImageWidth || tags?.ISO);
+
+      if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
+        // Automatically position the Leaflet map pin to the photo location
+        handleCoordinatesChange(lat, lng);
+
+        let detectedAddress = '';
+
+        // Reverse geocode with OpenStreetMap Nominatim
+        try {
+          const geoRes = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+          );
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            if (geoData?.display_name) {
+              detectedAddress = geoData.display_name;
+              setFormData((prev) => ({
+                ...prev,
+                address: geoData.display_name,
+              }));
+            }
+          }
+        } catch (geoErr) {
+          console.warn('Reverse geocoding error:', geoErr);
+        }
+
+        setExifStatus('found');
+        setExifData({
+          lat,
+          lng,
+          camera: cameraModel,
+          date: formattedDate,
+          address: detectedAddress,
+        });
+      } else {
+        setExifStatus('not_found');
+        setExifData({
+          camera: cameraModel,
+          date: formattedDate,
+          hasOtherMetadata,
+          rawKeys: tags ? Object.keys(tags).slice(0, 12) : [],
+        });
+      }
+    } catch (err) {
+      console.warn('Error reading EXIF metadata:', err);
+      setExifStatus('not_found');
+      setExifData({ hasOtherMetadata: false });
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setExifStatus(null);
+    setExifData(null);
   };
 
   const handleSubmit = async (e) => {
@@ -249,10 +422,16 @@ const ReportIssue = () => {
           </div>
 
           <div style={{ marginBottom: '20px', background: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Image size={16} color="#2563eb" />
-              Photo Evidence (Image URL or File Upload)
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: 0 }}>
+                <Image size={16} color="#2563eb" />
+                Photo Evidence (With Auto-GPS Metadata Detection)
+              </label>
+              <span style={{ fontSize: '0.72rem', background: '#eff6ff', color: '#1d4ed8', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                EXIF GPS Powered
+              </span>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Option A: Paste Image URL</span>
@@ -267,7 +446,7 @@ const ReportIssue = () => {
                 />
               </div>
               <div>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Option B: Upload File from Device</span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Option B: Upload Photo from Device</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -276,6 +455,128 @@ const ReportIssue = () => {
                 />
               </div>
             </div>
+
+            {/* Image Preview & EXIF Status Notification */}
+            {imageFile && (
+              <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {imagePreview && (
+                      <img
+                        src={imagePreview}
+                        alt="Issue Preview"
+                        style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                      />
+                    )}
+                    <div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>
+                        {imageFile.name}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                        {(imageFile.size / 1024).toFixed(1)} KB
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.75rem', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <X size={14} /> Remove
+                  </button>
+                </div>
+
+                {/* Scanning indicator */}
+                {exifStatus === 'scanning' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#2563eb', fontSize: '0.825rem', marginTop: '8px', background: '#eff6ff', padding: '8px 12px', borderRadius: '6px' }}>
+                    <Loader2 size={15} className="animate-spin" />
+                    <span>Extracting EXIF GPS coordinates from photo metadata...</span>
+                  </div>
+                )}
+
+                {/* EXIF GPS Found */}
+                {exifStatus === 'found' && exifData && (
+                  <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '12px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#065f46', fontWeight: 700, fontSize: '0.85rem' }}>
+                      <CheckCircle size={16} color="#059669" />
+                      <span>GPS Coordinates Extracted Successfully from Photo!</span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginTop: '6px', fontSize: '0.8rem', color: '#047857' }}>
+                      <span><strong>Latitude:</strong> {exifData.lat}° N</span>
+                      <span><strong>Longitude:</strong> {exifData.lng}° E</span>
+                      {exifData.camera && <span><strong>Camera:</strong> {exifData.camera}</span>}
+                      {exifData.date && <span><strong>Captured:</strong> {exifData.date}</span>}
+                    </div>
+
+                    <p style={{ margin: '6px 0 0 0', fontSize: '0.75rem', color: '#065f46' }}>
+                      🎯 Map pin and street landmark have been automatically updated based on the camera sensor.
+                    </p>
+                  </div>
+                )}
+
+                {/* EXIF GPS Not Found */}
+                {exifStatus === 'not_found' && (
+                  <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '8px', padding: '12px 14px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#92400e', fontWeight: 700, fontSize: '0.85rem' }}>
+                        <Info size={16} color="#d97706" />
+                        <span>GPS Coordinates Not Present in Uploaded File</span>
+                      </div>
+
+                      {exifData?.hasOtherMetadata && (
+                        <button
+                          type="button"
+                          onClick={() => setShowExifDetails(!showExifDetails)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#b45309',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {showExifDetails ? 'Hide Guide' : 'Why Gallery shows it?'}
+                          {showExifDetails ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        </button>
+                      )}
+                    </div>
+
+                    {exifData?.camera && (
+                      <div style={{ fontSize: '0.78rem', color: '#78350f', marginTop: '4px' }}>
+                        📷 Detected Camera: <strong>{exifData.camera}</strong> {exifData.date ? `• Taken on ${exifData.date}` : ''}
+                      </div>
+                    )}
+
+                    <p style={{ margin: '6px 0 0 0', fontSize: '0.78rem', color: '#92400e', lineHeight: 1.5 }}>
+                      {exifData?.hasOtherMetadata
+                        ? 'Your phone gallery has system permissions to see location, but mobile operating systems (Android Photo Picker / iOS) strip GPS tags by default when uploading to a browser for privacy.'
+                        : 'No GPS tags found. Common if photos are forwarded via WhatsApp/chat or downloaded from the web (which strip EXIF tags).'}
+                    </p>
+
+                    {showExifDetails && (
+                      <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #fde68a', fontSize: '0.75rem', color: '#78350f' }}>
+                        <strong>How to upload with location from your phone:</strong>
+                        <ul style={{ margin: '4px 0 8px 18px', padding: 0, lineHeight: 1.6 }}>
+                          <li><strong>Android:</strong> In the file picker, tap top-right <strong>⋮</strong> &gt; select <strong>"Browse..."</strong> or <strong>"Files"</strong> (DCIM/Camera) instead of the Photos tab.</li>
+                          <li><strong>iPhone:</strong> In the photo picker, tap <strong>"Options"</strong> at the bottom &gt; toggle <strong>"Location / All Photos Data"</strong> ON.</li>
+                          <li><strong>Computer:</strong> Ensure the photo was transferred via USB or Cloud Drive (not WhatsApp Web).</li>
+                        </ul>
+                        <div style={{ color: '#451a03' }}>
+                          Alternatively, click directly on the interactive map below or tap <strong>"Detect Current Location"</strong>.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom: '24px' }}>

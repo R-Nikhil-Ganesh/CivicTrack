@@ -17,12 +17,13 @@ Citizens frequently struggle with lack of transparency when reporting civic issu
 3. **Transparent Audit Timeline:** Every complaint features an immutable status history log showing when triage occurred and department action was taken.
 4. **Department Workflow Routing:** Automated classification and department assignment (`Roads`, `Water Supply`, `Waste Management`, `Electricity`).
 5. **Community Upvoting:** Citizens can upvote nearby complaints to prioritize critical issues without duplicate tickets.
+6. **EXIF Photo Metadata Auto-GPS:** Automatically parses GPS coordinates and capture timestamps from camera photos using client-side EXIF analysis (`exifr`), reverse-geocodes street landmarks, and auto-positions the map pin.
 
 ---
 
 ## 🛠️ 2. Tech Stack
 
-- **Frontend:** React (Vite), React Router v6, Axios, Leaflet (OpenStreetMap tiles), Lucide Icons, Web Speech API (STT & TTS), Modern CSS.
+- **Frontend:** React (Vite), React Router v6, Axios, Leaflet (OpenStreetMap tiles), exifr (EXIF metadata extraction), Lucide Icons, Web Speech API (STT & TTS), Modern CSS.
 - **Backend:** Node.js, Express.js (ES Modules, RESTful APIs, MVC architecture).
 - **Database:** MongoDB & Mongoose ODM.
 - **Authentication:** JSON Web Tokens (JWT) & Bcrypt password hashing.
