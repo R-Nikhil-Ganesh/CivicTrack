@@ -23,8 +23,8 @@ app.use(cors({
   origin: '*',
   credentials: true,
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '30mb' }));
+app.use(express.urlencoded({ extended: true, limit: '30mb' }));
 
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));

@@ -123,6 +123,12 @@ const ReportIssue = () => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
+    if (file.size > 30 * 1024 * 1024) {
+      setError('Selected image exceeds the 30MB limit. Please select a photo under 30MB.');
+      return;
+    }
+    setError('');
+
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setExifStatus('scanning');
@@ -473,7 +479,9 @@ const ReportIssue = () => {
                         {imageFile.name}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                        {(imageFile.size / 1024).toFixed(1)} KB
+                        {imageFile.size >= 1024 * 1024
+                          ? `${(imageFile.size / (1024 * 1024)).toFixed(2)} MB`
+                          : `${(imageFile.size / 1024).toFixed(1)} KB`}
                       </div>
                     </div>
                   </div>
