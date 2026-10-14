@@ -51,7 +51,7 @@ fsd/
 │   │   ├── issueRoutes.js        # /api/issues/*
 │   │   └── adminRoutes.js        # /api/admin/*
 │   ├── utils/
-│   │   └── seeder.js             # Realistic dummy data generator for demos
+│   │   └── seeder.js             # Initial sample dataset seeder
 │   ├── .env                      # Environment config (PORT, MONGO_URI, JWT_SECRET)
 │   ├── package.json
 │   └── server.js                 # Express application entry point

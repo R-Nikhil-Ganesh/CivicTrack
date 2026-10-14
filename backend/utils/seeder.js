@@ -16,7 +16,7 @@ const seedData = async () => {
     await User.deleteMany();
     await Issue.deleteMany();
 
-    console.log('Seeding demo users...');
+    console.log('Seeding initial users...');
     const salt = await bcrypt.genSalt(10);
     const defaultPasswordHash = await bcrypt.hash('password123', salt);
 
