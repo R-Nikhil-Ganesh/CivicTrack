@@ -34,6 +34,11 @@ const Login = () => {
     }
   };
 
+  const handleFillDemo = (demoEmail) => {
+    setEmail(demoEmail);
+    setPassword('password123');
+  };
+
   return (
     <div className="main-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '75vh' }}>
       <div className="card" style={{ maxWidth: '440px', width: '100%', padding: '32px' }}>
@@ -117,6 +122,60 @@ const Login = () => {
             {loading ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
+
+        <div
+          style={{
+            marginTop: '22px',
+            paddingTop: '16px',
+            borderTop: '1px dashed #e2e8f0',
+          }}
+        >
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span>⚡ 1-Click Demo Credentials</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={() => handleFillDemo('citizen@civictrack.org')}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+            >
+              Citizen
+            </button>
+            <button
+              type="button"
+              onClick={() => handleFillDemo('roads@civictrack.org')}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+            >
+              Roads Dept
+            </button>
+            <button
+              type="button"
+              onClick={() => handleFillDemo('water@civictrack.org')}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+            >
+              Water Dept
+            </button>
+            <button
+              type="button"
+              onClick={() => handleFillDemo('waste@civictrack.org')}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+            >
+              Waste Dept
+            </button>
+            <button
+              type="button"
+              onClick={() => handleFillDemo('admin@civictrack.org')}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+            >
+              Admin
+            </button>
+          </div>
+        </div>
 
         <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.85rem', color: '#64748b' }}>
           Don't have an account?{' '}
