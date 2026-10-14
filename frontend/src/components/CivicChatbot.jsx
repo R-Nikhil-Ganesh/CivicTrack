@@ -23,16 +23,18 @@ import {
   MUNICIPAL_DEPARTMENTS,
   MUNICIPAL_HELPLINES
 } from '../utils/civicKnowledge';
+import { useAuth } from '../context/AuthContext';
 
 const CivicChatbot = () => {
   const navigate = useNavigate();
+  const { user, isOfficial } = useAuth();
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       role: 'bot',
-      text: "👋 Greetings! I am **CivicBot**, your 24/7 municipal AI assistant.\n\nTell me about any civic issue in your neighborhood (e.g., *potholes*, *water leaks*, *garbage dumps*, or *dark streetlights*), and I will route it to the right municipal department!",
+      text: "👋 Greetings! I am CivicBot, your 24/7 municipal AI assistant.\n\nTell me about any civic issue in your neighborhood (e.g., potholes, water leaks, garbage dumps, or dark streetlights), and I will route it to the right municipal department!",
       chips: ['🚰 Water Leakage', '🛣️ Road Pothole', '🗑️ Garbage Overflow', '💡 Streetlight Fault'],
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
@@ -207,7 +209,11 @@ const CivicChatbot = () => {
   const handleActionClick = (url) => {
     if (url) {
       setIsOpen(false);
-      navigate(url);
+      if (isOfficial && url.startsWith('/report')) {
+        navigate('/admin');
+      } else {
+        navigate(url);
+      }
     }
   };
 
@@ -221,14 +227,17 @@ const CivicChatbot = () => {
         return <div key={idx} style={{ height: '8px' }} />;
       }
 
-      // Format bold (**bold**) and inline code (`code`)
-      const parts = line.split(/(\*\*.*?\*\*|`.*?`)/g);
+      // Format bold (**bold**), italic (*italic*), and inline code (`code`)
+      const parts = line.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g);
 
       return (
         <div key={idx} style={{ marginBottom: '4px', lineHeight: '1.45' }}>
           {parts.map((part, pIdx) => {
             if (part.startsWith('**') && part.endsWith('**')) {
               return <strong key={pIdx} style={{ color: '#0f172a' }}>{part.slice(2, -2)}</strong>;
+            }
+            if (part.startsWith('*') && part.endsWith('*')) {
+              return <span key={pIdx} style={{ color: '#1e293b' }}>{part.slice(1, -1)}</span>;
             }
             if (part.startsWith('`') && part.endsWith('`')) {
               return (
@@ -247,7 +256,7 @@ const CivicChatbot = () => {
                 </span>
               );
             }
-            return part;
+            return part.replace(/\*/g, '');
           })}
         </div>
       );
@@ -366,16 +375,29 @@ const CivicChatbot = () => {
                       <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>{dept.name}</div>
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>SLA: {dept.sla} • Tel: {dept.phone}</div>
                     </div>
-                    <button
-                      type="button"
-                      className="directory-action-btn"
-                      onClick={() => {
-                        setShowDirectory(false);
-                        handleActionClick(`/report?category=${encodeURIComponent(dept.name)}`);
-                      }}
-                    >
-                      Report
-                    </button>
+                    {!isOfficial ? (
+                      <button
+                        type="button"
+                        className="directory-action-btn"
+                        onClick={() => {
+                          setShowDirectory(false);
+                          handleActionClick(`/report?category=${encodeURIComponent(dept.name)}`);
+                        }}
+                      >
+                        Report
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="directory-action-btn"
+                        onClick={() => {
+                          setShowDirectory(false);
+                          handleActionClick('/admin');
+                        }}
+                      >
+                        View Dept
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -402,7 +424,11 @@ const CivicChatbot = () => {
                       className="msg-action-cta"
                       onClick={() => handleActionClick(msg.actionUrl)}
                     >
-                      <span>{msg.actionText || 'Proceed'}</span>
+                      <span>
+                        {isOfficial && msg.actionUrl.startsWith('/report')
+                          ? 'View Department Dashboard'
+                          : (msg.actionText || 'Proceed')}
+                      </span>
                       <ExternalLink size={14} />
                     </button>
                   )}

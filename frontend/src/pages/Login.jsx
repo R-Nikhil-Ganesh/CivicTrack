@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, Key, Mail, ShieldAlert } from 'lucide-react';
+import { LogIn, ShieldAlert } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -32,11 +32,6 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFillDemo = (demoEmail) => {
-    setEmail(demoEmail);
-    setPassword('password123');
   };
 
   return (
@@ -122,52 +117,6 @@ const Login = () => {
             {loading ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
-
-        <div
-          style={{
-            marginTop: '24px',
-            paddingTop: '18px',
-            borderTop: '1px dashed #e2e8f0',
-          }}
-        >
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>
-            ⚡ 1-Click Demo Accounts (For Viva/Demo)
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            <button
-              type="button"
-              onClick={() => handleFillDemo('citizen@civictrack.org')}
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-            >
-              Citizen
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFillDemo('roads@civictrack.org')}
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-            >
-              Roads Dept
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFillDemo('water@civictrack.org')}
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-            >
-              Water Dept
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFillDemo('admin@civictrack.org')}
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-            >
-              Admin
-            </button>
-          </div>
-        </div>
 
         <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.85rem', color: '#64748b' }}>
           Don't have an account?{' '}

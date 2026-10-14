@@ -10,7 +10,7 @@ const CATEGORIES = ['All', 'Roads', 'Water Supply', 'Waste Management', 'Electri
 const STATUSES = ['All', 'Pending', 'In Progress', 'Resolved'];
 
 const Home = () => {
-  const { user } = useAuth();
+  const { user, isOfficial } = useAuth();
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -111,19 +111,35 @@ const Home = () => {
           </p>
 
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <Link
-              to="/report"
-              className="btn btn-primary"
-              style={{
-                backgroundColor: '#ffffff',
-                color: '#1e3a8a',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                fontWeight: 700,
-              }}
-            >
-              <PlusCircle size={17} />
-              Report an Issue Now
-            </Link>
+            {!isOfficial ? (
+              <Link
+                to="/report"
+                className="btn btn-primary"
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#1e3a8a',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  fontWeight: 700,
+                }}
+              >
+                <PlusCircle size={17} />
+                Report an Issue Now
+              </Link>
+            ) : (
+              <Link
+                to="/admin"
+                className="btn btn-primary"
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#1e3a8a',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  fontWeight: 700,
+                }}
+              >
+                <List size={17} />
+                Open Department Dashboard
+              </Link>
+            )}
             <a
               href="#city-map"
               className="btn"
@@ -287,9 +303,11 @@ const Home = () => {
             <p style={{ fontSize: '0.9rem', marginBottom: '16px' }}>
               No issues match your current search or category filter.
             </p>
-            <Link to="/report" className="btn btn-primary">
-              Report the First Issue
-            </Link>
+            {!isOfficial && (
+              <Link to="/report" className="btn btn-primary">
+                Report the First Issue
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid-3">

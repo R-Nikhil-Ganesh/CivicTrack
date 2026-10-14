@@ -12,7 +12,7 @@ export const protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(
         token,
-        process.env.JWT_SECRET || 'civictrack_secret_key_student_project_2026'
+        process.env.JWT_SECRET || 'civictrack_production_jwt_secret_key_2026_secured'
       );
 
       req.user = await User.findById(decoded.id).select('-password');

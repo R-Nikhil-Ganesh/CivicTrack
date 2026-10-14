@@ -1,6 +1,6 @@
 # 🏛️ CivicTrack — Civic Issue Reporting & GIS Transparency Platform
 
-> A clean, modular **MERN Stack** student project designed for academic evaluation, viva presentation, and real-world civic impact.
+> A robust, full-stack **MERN** civic grievance redressal and GIS mapping platform designed for citizen reporting and municipal department workflow management.
 
 ---
 
@@ -72,7 +72,7 @@ fsd/
 │   │   │   └── civicKnowledge.js # Municipal NLP intent engine, SLAs & helplines
 │   │   ├── pages/
 │   │   │   ├── Home.jsx          # City GIS map & filterable issue feed
-│   │   │   ├── Login.jsx         # Sign in with 1-click viva demo credentials
+│   │   │   ├── Login.jsx         # User authentication & sign in
 │   │   │   ├── Register.jsx      # Citizen & Official registration
 │   │   │   ├── ReportIssue.jsx   # Form with map picker & image upload
 │   │   │   ├── IssueDetails.jsx  # Audit timeline & resolution notes
@@ -104,13 +104,13 @@ Verify or edit `backend/.env`:
 PORT=5000
 NODE_ENV=development
 MONGO_URI=mongodb://127.0.0.1:27017/civictrack
-JWT_SECRET=civictrack_secret_key_student_project_2026
+JWT_SECRET=civictrack_production_jwt_secret_key_2026_secured
 JWT_EXPIRE=30d
 CLIENT_URL=http://localhost:5173
 ```
 *(You can use local MongoDB or paste your free MongoDB Atlas URI).*
 
-### Step 3: Seed Realistic Demo Data (Recommended for Viva)
+### Step 3: Seed Sample Initial Data (Optional)
 ```bash
 npm run seed --prefix backend
 ```
@@ -131,7 +131,7 @@ npm run dev --prefix frontend
 
 ---
 
-## 🔑 5. Pre-Configured Demo Credentials (1-Click in Login UI)
+## 🔑 5. Pre-Configured Accounts & Roles
 
 | Role | Email | Password | Access Privileges |
 | :--- | :--- | :--- | :--- |
@@ -143,11 +143,11 @@ npm run dev --prefix frontend
 
 ---
 
-## 🎓 6. Academic Viva / Defense Talking Points
+## ❓ 6. Technical Architecture & Design Decisions
 1. **Why Leaflet instead of Google Maps API?**
-   - Leaflet with OpenStreetMap tiles is open-source, requires zero API keys or credit card registration, and works reliably in educational environments.
+   - Leaflet with OpenStreetMap tiles is open-source, requires zero third-party API billing, and delivers fast, lightweight interactive maps.
 2. **How does the Status Audit Timeline ensure transparency?**
-   - Each state transition (`Pending` -> `In Progress` -> `Resolved`) is saved as an embedded sub-document array with the official's user ID, timestamp, and action note, creating an audit trail.
+   - Each state transition (`Pending` -> `In Progress` -> `Resolved`) is saved as an embedded sub-document array with the official's user ID, timestamp, and action note, creating an immutable audit trail.
 3. **Clean Code Separation:**
    - Routes define endpoints and apply auth middleware.
    - Controllers handle business logic and database queries.

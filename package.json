@@ -8,7 +8,7 @@
     "seed": "npm run seed --prefix backend",
     "install:all": "npm install --prefix backend && npm install --prefix frontend"
   },
-  "keywords": ["mern", "civic-issues", "gis", "student-project"],
+  "keywords": ["mern", "civic-issues", "gis"],
   "author": "",
   "license": "ISC"
 }

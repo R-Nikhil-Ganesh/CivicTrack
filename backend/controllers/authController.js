@@ -4,7 +4,7 @@ import User from '../models/User.js';
 const generateToken = (id) => {
   return jwt.sign(
     { id },
-    process.env.JWT_SECRET || 'civictrack_secret_key_student_project_2026',
+    process.env.JWT_SECRET || 'civictrack_production_jwt_secret_key_2026_secured',
     {
       expiresIn: process.env.JWT_EXPIRE || '30d',
     }

@@ -29,7 +29,7 @@ function App() {
             <Route
               path="/report"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="citizen">
                   <ReportIssue />
                 </ProtectedRoute>
               }
@@ -37,7 +37,7 @@ function App() {
             <Route
               path="/my-reports"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="citizen">
                   <MyReports />
                 </ProtectedRoute>
               }

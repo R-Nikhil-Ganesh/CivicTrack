@@ -33,7 +33,7 @@ const Navbar = () => {
             City Issues & Map
           </Link>
 
-          {user && (
+          {user && !isOfficial && (
             <Link
               to="/report"
               className={`nav-link ${isActive('/report') ? 'active' : ''}`}
@@ -43,7 +43,7 @@ const Navbar = () => {
             </Link>
           )}
 
-          {user && (
+          {user && !isOfficial && (
             <Link
               to="/my-reports"
               className={`nav-link ${isActive('/my-reports') ? 'active' : ''}`}

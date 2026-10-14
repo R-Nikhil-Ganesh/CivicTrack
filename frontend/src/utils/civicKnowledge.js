@@ -177,7 +177,7 @@ export function analyzeCivicQuery(rawQuery, context = {}) {
 
   // 7. Fallback Response
   return {
-    text: "I can help route your civic complaint directly to the responsible municipal department (Roads, Water Supply, Waste Management, Electricity) and provide emergency contacts.\n\nPlease describe the issue (e.g. *'Water pipe burst in my street'* or *'Streetlights are out'*) or choose a quick option below:",
+    text: "I can help route your civic complaint directly to the responsible municipal department (Roads, Water Supply, Waste Management, Electricity) and provide emergency contacts.\n\nPlease describe the issue (e.g. 'Water pipe burst in my street' or 'Streetlights are out') or choose a quick option below:",
     chips: ['🚰 Water Leakage', '🛣️ Road Pothole', '🗑️ Garbage Overflow', '💡 Streetlight Fault', '📞 Helplines'],
   };
 }
