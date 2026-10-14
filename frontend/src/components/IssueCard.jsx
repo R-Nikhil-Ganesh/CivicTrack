@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, ThumbsUp, Calendar, ArrowRight } from 'lucide-react';
 import StatusBadge from './StatusBadge';
+import { getImageUrl } from '../services/api';
 
 const IssueCard = ({ issue, onUpvote, currentUserId }) => {
   const isUpvoted = currentUserId && issue.upvotes?.includes(currentUserId);
@@ -32,11 +33,11 @@ const IssueCard = ({ issue, onUpvote, currentUserId }) => {
     <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ position: 'relative', height: '180px', overflow: 'hidden', background: '#f1f5f9' }}>
         <img
-          src={issue.imageUrl}
+          src={getImageUrl(issue.imageUrl)}
           alt={issue.title}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           onError={(e) => {
-            e.target.src = 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=600&auto=format&fit=crop&q=60';
+            e.target.src = 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&auto=format&fit=crop&q=60';
           }}
         />
         <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', gap: '6px' }}>

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
+import api, { getImageUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
-import { List, PlusCircle, ArrowRight, MapPin, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { List, PlusCircle, ArrowRight, MapPin, Calendar, Clock, AlertCircle, Trash2 } from 'lucide-react';
 
 const MyReports = () => {
   const { user } = useAuth();
@@ -27,6 +27,21 @@ const MyReports = () => {
 
     fetchMyReports();
   }, []);
+
+  const handleDeleteReport = async (issueId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this reported issue?')) {
+      return;
+    }
+
+    try {
+      const res = await api.delete(`/issues/${issueId}`);
+      if (res.data.success) {
+        setReports((prev) => prev.filter((r) => r._id !== issueId));
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete issue');
+    }
+  };
 
   const pending = reports.filter((r) => r.status === 'Pending').length;
   const inProgress = reports.filter((r) => r.status === 'In Progress').length;
@@ -111,11 +126,11 @@ const MyReports = () => {
             >
               <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                 <img
-                  src={issue.imageUrl}
+                  src={getImageUrl(issue.imageUrl)}
                   alt={issue.title}
                   style={{ width: '80px', height: '70px', borderRadius: '8px', objectFit: 'cover' }}
                   onError={(e) => {
-                    e.target.src = 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=600&auto=format&fit=crop&q=60';
+                    e.target.src = 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&auto=format&fit=crop&q=60';
                   }}
                 />
                 <div>
@@ -141,11 +156,28 @@ const MyReports = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <StatusBadge status={issue.status} />
                 <Link to={`/issues/${issue._id}`} className="btn btn-outline btn-sm">
                   View Timeline <ArrowRight size={14} />
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteReport(issue._id)}
+                  className="btn btn-sm"
+                  style={{
+                    background: '#fee2e2',
+                    color: '#b91c1c',
+                    border: '1px solid #fecaca',
+                    padding: '6px 10px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                  title="Delete this reported issue"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
             </div>
           ))}

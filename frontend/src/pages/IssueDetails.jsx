@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import api from '../services/api';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import api, { getImageUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import L from 'leaflet';
@@ -15,14 +15,17 @@ import {
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
+  Trash2,
 } from 'lucide-react';
 
 const IssueDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user, isOfficial } = useAuth();
   const [issue, setIssue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState('In Progress');
@@ -152,23 +155,74 @@ const IssueDetails = () => {
   const isUpvoted = user && issue.upvotes?.includes(user._id);
   const upvoteCount = issue.upvotes?.length || 0;
 
+  const isOwner = user && issue && (
+    (typeof issue.reportedBy === 'string' && issue.reportedBy === user._id) ||
+    (typeof issue.reportedBy === 'object' && issue.reportedBy?._id === user._id)
+  );
+  const canDelete = isOwner || isOfficial;
+
+  const handleDeleteIssue = async () => {
+    if (!window.confirm('Are you sure you want to permanently delete this civic issue? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      const res = await api.delete(`/issues/${id}`);
+      if (res.data.success) {
+        alert('Civic issue deleted successfully');
+        if (isOfficial) {
+          navigate('/admin');
+        } else {
+          navigate('/my-reports');
+        }
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete issue');
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="main-content" style={{ maxWidth: '980px' }}>
-      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <Link to="/" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
           <ArrowLeft size={15} /> Back to Issues Feed
         </Link>
 
-        {isOfficial && (
-          <button
-            onClick={() => setShowStatusModal(true)}
-            className="btn btn-primary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
-            <ShieldCheck size={16} />
-            Update Department Status
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {isOfficial && (
+            <button
+              onClick={() => setShowStatusModal(true)}
+              className="btn btn-primary btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <ShieldCheck size={16} />
+              Update Department Status
+            </button>
+          )}
+
+          {canDelete && (
+            <button
+              onClick={handleDeleteIssue}
+              disabled={deleting}
+              className="btn btn-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#fee2e2',
+                color: '#b91c1c',
+                border: '1px solid #fecaca',
+                fontWeight: 600,
+              }}
+              title="Delete this civic issue"
+            >
+              <Trash2 size={15} />
+              {deleting ? 'Deleting...' : 'Delete Issue'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '24px' }}>
@@ -193,11 +247,11 @@ const IssueDetails = () => {
 
             <div style={{ borderRadius: '10px', overflow: 'hidden', marginBottom: '20px', background: '#f1f5f9', maxHeight: '380px' }}>
               <img
-                src={issue.imageUrl}
+                src={getImageUrl(issue.imageUrl)}
                 alt={issue.title}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onError={(e) => {
-                  e.target.src = 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=600&auto=format&fit=crop&q=60';
+                  e.target.src = 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&auto=format&fit=crop&q=60';
                 }}
               />
             </div>

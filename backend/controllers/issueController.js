@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import Issue from '../models/Issue.js';
 
 export const getAllIssues = async (req, res, next) => {
@@ -182,18 +184,23 @@ export const deleteIssue = async (req, res, next) => {
 
     const isOwner = issue.reportedBy.toString() === req.user._id.toString();
     const isAdmin = req.user.role === 'admin';
+    const isOfficial = req.user.role === 'official';
 
-    if (!isOwner && !isAdmin) {
+    if (!isOwner && !isAdmin && !isOfficial) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this issue',
       });
     }
 
-    if (isOwner && !isAdmin && issue.status !== 'Pending') {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete an issue that is already being processed or resolved',
+    // Clean up uploaded image file from disk if local
+    if (issue.imageUrl && issue.imageUrl.startsWith('/uploads/')) {
+      const filename = path.basename(issue.imageUrl);
+      const filePath = path.join(process.cwd(), 'uploads', filename);
+      fs.unlink(filePath, (err) => {
+        if (err && err.code !== 'ENOENT') {
+          console.warn('Failed to delete image on disk:', err.message);
+        }
       });
     }
 

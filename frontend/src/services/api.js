@@ -36,4 +36,11 @@ api.interceptors.response.use(
   }
 );
 
+export const getImageUrl = (url) => {
+  if (!url) return 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&auto=format&fit=crop&q=60';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
+  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 export default api;

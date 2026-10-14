@@ -13,6 +13,7 @@ import {
   Edit,
   Eye,
   Filter,
+  Trash2,
 } from 'lucide-react';
 
 const DEPARTMENTS = ['All', 'Roads', 'Water Supply', 'Waste Management', 'Electricity', 'General'];
@@ -93,6 +94,22 @@ const AdminDashboard = () => {
       alert(err.response?.data?.message || 'Failed to update issue');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteIssue = async (issueId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this issue from the system?')) {
+      return;
+    }
+
+    try {
+      const res = await api.delete(`/issues/${issueId}`);
+      if (res.data.success) {
+        setIssues((prev) => prev.filter((iss) => iss._id !== issueId));
+        fetchDashboardData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete issue');
     }
   };
 
@@ -280,7 +297,7 @@ const AdminDashboard = () => {
                   </td>
 
                   <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', gap: '8px' }}>
+                    <div style={{ display: 'inline-flex', gap: '6px' }}>
                       <Link to={`/issues/${iss._id}`} className="btn btn-secondary btn-sm" title="View Details">
                         <Eye size={14} />
                       </Link>
@@ -288,8 +305,25 @@ const AdminDashboard = () => {
                         onClick={() => handleOpenModal(iss)}
                         className="btn btn-primary btn-sm"
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        title="Update Status"
                       >
                         <Edit size={14} /> Update
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteIssue(iss._id)}
+                        className="btn btn-sm"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          background: '#fee2e2',
+                          color: '#b91c1c',
+                          border: '1px solid #fecaca',
+                          padding: '5px 8px',
+                        }}
+                        title="Delete Issue"
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>
