@@ -722,7 +722,88 @@ button {
   transform: translateY(-1px);
 }
 
-/* Voice Listening Active Notification */
+/* Voice Error & Listening Notifications */
+.bot-voice-error-bar {
+  background: #fef2f2;
+  border-top: 1px solid #fecaca;
+  padding: 8px 14px;
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: #991b1b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bot-voice-error-close {
+  background: transparent;
+  border: none;
+  color: #991b1b;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.bot-voice-error-close:hover {
+  color: #7f1d1d;
+}
+
+.bot-voice-action-btn {
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.725rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.bot-voice-action-btn:hover {
+  background: #b91c1c;
+  transform: scale(1.02);
+}
+
+.bot-voice-action-btn.secondary {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.bot-voice-action-btn.secondary:hover {
+  background: #fecaca;
+}
+
+.bot-dictation-hint {
+  background: #eff6ff;
+  border-top: 1px solid #bfdbfe;
+  padding: 8px 14px;
+  font-size: 0.775rem;
+  color: #1e40af;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: slideUp 0.15s ease;
+}
+
+.bot-dictation-hint kbd {
+  background: #ffffff;
+  border: 1px solid #93c5fd;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
 .bot-listening-bar {
   background: #fef2f2;
   border-top: 1px solid #fecaca;
@@ -741,6 +822,29 @@ button {
   border-radius: 50%;
   background: #ef4444;
   animation: listeningBlink 0.9s infinite alternate;
+}
+
+.bot-listening-done-btn {
+  margin-left: auto;
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.725rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.bot-listening-done-btn:hover {
+  background: #dc2626;
+  transform: scale(1.02);
+}
+
+.bot-listening-done-btn:active {
+  transform: scale(0.98);
 }
 
 @keyframes listeningBlink {
@@ -795,6 +899,163 @@ button {
   color: #ffffff;
   box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
   animation: micPulse 1.2s infinite alternate;
+}
+
+.bot-mic-settings-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bot-mic-settings-btn:hover {
+  background: #e2e8f0;
+  color: var(--primary);
+}
+
+.bot-mic-settings-btn.active {
+  background: #eff6ff;
+  color: var(--primary);
+  border-color: #bfdbfe;
+}
+
+/* Microphone Switcher Drawer & Live VU Meter */
+.bot-mic-drawer {
+  background: #ffffff;
+  border-top: 1px solid var(--border);
+  padding: 12px 14px;
+  max-height: 250px;
+  overflow-y: auto;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.bot-mic-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.bot-mic-drawer-close {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.bot-mic-drawer-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.bot-mic-current-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 5px 10px;
+  margin-bottom: 8px;
+}
+
+.bot-mic-name {
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Audio Level VU Meter */
+.bot-mic-level-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.bot-mic-level-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.725rem;
+  color: #475569;
+  margin-bottom: 5px;
+}
+
+.bot-mic-meter-track {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.bot-mic-meter-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.08s ease-out, background 0.1s ease;
+}
+
+/* Mic Option Radio List */
+.bot-mic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bot-mic-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.775rem;
+  color: #334155;
+  transition: background 0.15s;
+}
+
+.bot-mic-option:hover {
+  background: #f1f5f9;
+}
+
+.bot-mic-option.selected {
+  background: #eff6ff;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.bot-mic-opt-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bot-mic-badge {
+  font-size: 0.65rem;
+  background: var(--primary);
+  color: white;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-weight: 700;
 }
 
 @keyframes micPulse {

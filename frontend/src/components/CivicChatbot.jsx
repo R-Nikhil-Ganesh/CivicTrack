@@ -15,7 +15,8 @@ import {
   Sparkles,
   HelpCircle,
   PhoneCall,
-  CheckCircle2
+  CheckCircle2,
+  SlidersHorizontal
 } from 'lucide-react';
 import {
   analyzeCivicQuery,
@@ -42,43 +43,228 @@ const CivicChatbot = () => {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
+  const [voiceError, setVoiceError] = useState(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showDirectory, setShowDirectory] = useState(false);
 
+  // Microphone device switcher & audio VU meter states
+  const [audioDevices, setAudioDevices] = useState([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState(() => {
+    return localStorage.getItem('civic_selected_mic_id') || 'default';
+  });
+  const [selectedLang, setSelectedLang] = useState(() => {
+    return localStorage.getItem('civic_selected_lang') || 'en-US';
+  });
+  const [showMicSettings, setShowMicSettings] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [windowsDictationHint, setWindowsDictationHint] = useState(false);
+
+  const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
+  const isListeningRef = useRef(false);
+  const silenceTimerRef = useRef(null);
+  const maxDurationTimerRef = useRef(null);
+  const restartTimerRef = useRef(null);
+  const transcriptRef = useRef('');
+  const baseTranscriptRef = useRef('');
+  const restartCountRef = useRef(0);
+  const lastRestartTimeRef = useRef(0);
 
-  // Initialize Speech Recognition
+  const activeStreamRef = useRef(null);
+  const previewStreamRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const animationFrameRef = useRef(null);
+
+  const SUPPORTED_LANGUAGES = [
+    { code: 'en-US', label: 'English (US)' },
+    { code: 'en-IN', label: 'English (India)' },
+    { code: 'en-GB', label: 'English (UK)' },
+    { code: 'hi-IN', label: 'Hindi (हिंदी)' },
+    { code: 'ta-IN', label: 'Tamil (தமிழ்)' },
+    { code: 'te-IN', label: 'Telugu (తెలుగు)' },
+    { code: 'kn-IN', label: 'Kannada (ಕನ್ನಡ)' },
+  ];
+
+  // Check speech recognition support on mount
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      setVoiceSupported(true);
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
+    setVoiceSupported(!!SpeechRecognition);
+  }, []);
 
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(transcript);
-        setIsListening(false);
-        // Automatically send voice query after a brief delay for a seamless experience
-        handleSendQuery(transcript);
+  // Audio VU Level Meter Setup
+  const setupAudioMeter = (stream) => {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      if (audioContextRef.current) {
+        try { audioContextRef.current.close(); } catch (e) {}
+      }
+
+      const audioCtx = new AudioContextClass();
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 128;
+      analyser.smoothingTimeConstant = 0.4;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      audioContextRef.current = audioCtx;
+      analyserRef.current = analyser;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const checkLevel = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / dataArray.length;
+        const level = Math.min(100, Math.round((avg / 60) * 100));
+        setAudioLevel(level);
+
+        animationFrameRef.current = requestAnimationFrame(checkLevel);
       };
 
-      recognition.onerror = (err) => {
-        console.warn('Speech recognition error:', err);
-        setIsListening(false);
-      };
+      checkLevel();
+    } catch (err) {
+      console.warn('Audio meter setup error:', err);
+    }
+  };
 
-      recognition.onend = () => {
-        setIsListening(false);
-      };
+  const cleanupAudioMeter = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try { audioContextRef.current.close(); } catch (e) {}
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    setAudioLevel(0);
+  };
 
-      recognitionRef.current = recognition;
+  // Enumerate Audio Input Devices
+  const loadAudioDevices = async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    try {
+      let devices = await navigator.mediaDevices.enumerateDevices();
+      let audioInputs = devices.filter((d) => d.kind === 'audioinput');
+
+      const hasLabels = audioInputs.some((d) => d.label);
+      if (!hasLabels && navigator.mediaDevices.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((t) => t.stop());
+          devices = await navigator.mediaDevices.enumerateDevices();
+          audioInputs = devices.filter((d) => d.kind === 'audioinput');
+        } catch (e) {
+          console.warn('Could not unmask audio device labels:', e);
+        }
+      }
+
+      setAudioDevices(audioInputs);
+
+      const saved = localStorage.getItem('civic_selected_mic_id');
+      if (saved && saved !== 'default') {
+        const exists = audioInputs.some((d) => d.deviceId === saved);
+        if (exists) {
+          setSelectedDeviceId(saved);
+        } else if (audioInputs.length > 0) {
+          setSelectedDeviceId(audioInputs[0].deviceId);
+        }
+      }
+    } catch (err) {
+      console.warn('Error loading audio devices:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadAudioDevices();
+    if (navigator.mediaDevices?.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', loadAudioDevices);
+      return () => {
+        navigator.mediaDevices.removeEventListener('devicechange', loadAudioDevices);
+      };
     }
   }, []);
+
+  const startMicPreview = async (deviceId) => {
+    stopMicPreview();
+    try {
+      const constraints = (deviceId && deviceId !== 'default')
+        ? { audio: { deviceId: { exact: deviceId } } }
+        : { audio: true };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      previewStreamRef.current = stream;
+      setupAudioMeter(stream);
+    } catch (err) {
+      console.warn('Mic preview error:', err);
+    }
+  };
+
+  const stopMicPreview = () => {
+    if (previewStreamRef.current) {
+      previewStreamRef.current.getTracks().forEach((t) => t.stop());
+      previewStreamRef.current = null;
+    }
+    if (!isListeningRef.current) {
+      cleanupAudioMeter();
+    }
+  };
+
+  useEffect(() => {
+    if (showMicSettings && !isListening) {
+      startMicPreview(selectedDeviceId);
+    } else if (!showMicSettings && !isListening) {
+      stopMicPreview();
+    }
+  }, [showMicSettings, isListening, selectedDeviceId]);
+
+  const handleSelectDevice = async (deviceId) => {
+    setSelectedDeviceId(deviceId);
+    localStorage.setItem('civic_selected_mic_id', deviceId);
+
+    if (isListeningRef.current) {
+      baseTranscriptRef.current = transcriptRef.current;
+      stopListening(false);
+      setTimeout(() => {
+        startListening(deviceId);
+      }, 150);
+    } else if (showMicSettings) {
+      startMicPreview(deviceId);
+    }
+  };
+
+  const handleSelectLanguage = (langCode) => {
+    setSelectedLang(langCode);
+    localStorage.setItem('civic_selected_lang', langCode);
+    if (isListeningRef.current) {
+      baseTranscriptRef.current = transcriptRef.current;
+      stopListening(false);
+      setTimeout(() => {
+        startListening();
+      }, 150);
+    }
+  };
+
+  const handleUseWindowsVoiceTyping = () => {
+    setVoiceError(null);
+    inputRef.current?.focus();
+    setWindowsDictationHint(true);
+    setTimeout(() => setWindowsDictationHint(false), 9000);
+  };
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
@@ -87,9 +273,23 @@ const CivicChatbot = () => {
     }
   }, [messages, isOpen]);
 
-  // Clean up speech synthesis when closed
+  // Clean up speech recognition, preview and synthesis when closed or unmounted
+  useEffect(() => {
+    if (!isOpen) {
+      stopListening(false);
+      stopMicPreview();
+      setShowMicSettings(false);
+      setVoiceError(null);
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     return () => {
+      stopListening(false);
+      stopMicPreview();
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
@@ -117,47 +317,6 @@ const CivicChatbot = () => {
     window.speechSynthesis.speak(utterance);
   };
 
-  const toggleListening = () => {
-    if (!voiceSupported) {
-      alert('Speech recognition is not supported in this browser. Please try Chrome, Edge, or Safari.');
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-    } else {
-      try {
-        recognitionRef.current?.start();
-        setIsListening(true);
-      } catch (err) {
-        console.error('Error starting speech recognition:', err);
-        setIsListening(false);
-      }
-    }
-  };
-
-  const toggleTTS = () => {
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-    }
-    setTtsEnabled(!ttsEnabled);
-  };
-
-  const handleResetChat = () => {
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
-    setMessages([
-      {
-        id: 'welcome-reset',
-        role: 'bot',
-        text: "Chat cleared! How can I assist you with municipal services or civic issues?",
-        chips: ['🚰 Water Leakage', '🛣️ Road Pothole', '🗑️ Garbage Overflow', '💡 Streetlight Fault'],
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
-  };
-
   const handleSendQuery = (userQueryText) => {
     const textToSend = userQueryText || input;
     if (!textToSend.trim()) return;
@@ -171,6 +330,8 @@ const CivicChatbot = () => {
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
+    transcriptRef.current = '';
+    baseTranscriptRef.current = '';
 
     // Simulate smart municipal reasoning
     setTimeout(() => {
@@ -194,9 +355,317 @@ const CivicChatbot = () => {
     }, 450);
   };
 
+  const stopListening = (send = false) => {
+    isListeningRef.current = false;
+    setIsListening(false);
+
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (maxDurationTimerRef.current) {
+      clearTimeout(maxDurationTimerRef.current);
+      maxDurationTimerRef.current = null;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.stop();
+      } catch (err) {
+        // Safe ignore
+      }
+      recognitionRef.current = null;
+    }
+
+    if (activeStreamRef.current) {
+      activeStreamRef.current.getTracks().forEach((t) => t.stop());
+      activeStreamRef.current = null;
+    }
+
+    cleanupAudioMeter();
+
+    const captured = transcriptRef.current.trim();
+    if (send && captured) {
+      handleSendQuery(captured);
+    }
+
+    transcriptRef.current = '';
+    baseTranscriptRef.current = '';
+    restartCountRef.current = 0;
+  };
+
+  const startRecognitionInstance = () => {
+    if (!isListeningRef.current) return;
+
+    // Rate-limit restarts if microphone device keeps failing immediately
+    const now = Date.now();
+    if (now - lastRestartTimeRef.current < 2500) {
+      restartCountRef.current += 1;
+    } else {
+      restartCountRef.current = 1;
+    }
+    lastRestartTimeRef.current = now;
+
+    if (restartCountRef.current > 8 && !transcriptRef.current.trim()) {
+      console.warn('Speech recognition restarted too frequently without capturing speech.');
+      setVoiceError({
+        title: 'Microphone Silent',
+        message: 'No speech was detected. Please verify microphone volume or speak closer to mic.'
+      });
+      stopListening(false);
+      return;
+    }
+
+    try {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.onresult = null;
+          recognitionRef.current.onerror = null;
+          recognitionRef.current.onend = null;
+          recognitionRef.current.abort();
+        } catch (e) {}
+        recognitionRef.current = null;
+      }
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) return;
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognition.lang = selectedLang || navigator.language || 'en-US';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event) => {
+        let currentInterim = '';
+        let currentFinal = '';
+
+        for (let i = 0; i < event.results.length; i++) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            currentFinal += item[0].transcript + ' ';
+          } else {
+            currentInterim += item[0].transcript;
+          }
+        }
+
+        const combined = [baseTranscriptRef.current, currentFinal, currentInterim]
+          .filter(Boolean)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (combined) {
+          setInput(combined);
+          transcriptRef.current = combined;
+          setVoiceError(null);
+          restartCountRef.current = 0;
+
+          // Clear safety timer once words are recognized
+          if (maxDurationTimerRef.current) {
+            clearTimeout(maxDurationTimerRef.current);
+            maxDurationTimerRef.current = null;
+          }
+
+          // Debounce: auto-submit query 2.2 seconds after speaker pauses
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            stopListening(true);
+          }, 2200);
+        }
+      };
+
+      recognition.onerror = async (event) => {
+        console.warn('Speech recognition event error:', event.error);
+        if (event.error === 'no-speech') {
+          // Expected ambient pause in Chrome; onend will automatically restart session
+          return;
+        }
+        if (event.error === 'aborted') {
+          return;
+        }
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          setVoiceError({
+            title: 'Microphone Permission Blocked',
+            message: 'Microphone access was denied. Please click the tune/lock icon in your browser address bar and set Microphone to "Allow".'
+          });
+          stopListening(false);
+          return;
+        }
+        if (event.error === 'audio-capture') {
+          setVoiceError({
+            title: 'No Microphone Detected',
+            message: 'No microphone was found. Please check your audio cable, headset, or sound input settings.'
+          });
+          stopListening(false);
+          return;
+        }
+        if (event.error === 'network') {
+          let isBrave = false;
+          try {
+            if (navigator.brave && typeof navigator.brave.isBrave === 'function') {
+              isBrave = await navigator.brave.isBrave();
+            }
+          } catch (e) {}
+
+          if (isBrave) {
+            setVoiceError({
+              title: 'Brave Browser Blocks Speech Cloud',
+              message: 'Brave blocks Google speech servers by default. You can open CivicPortal in Google Chrome or Microsoft Edge, or click below to dictate directly with Windows Voice Typing (Win + H).'
+            });
+          } else {
+            setVoiceError({
+              title: 'Speech Cloud Service Unreachable',
+              message: 'The browser cannot reach Google Speech servers (blocked by an ad-blocker like uBlock/Pi-hole, strict firewall, or VPN). Try Microsoft Edge, pausing ad-blockers, or use Windows Voice Typing below.'
+            });
+          }
+          stopListening(false);
+          return;
+        }
+
+        stopListening(false);
+      };
+
+      recognition.onend = () => {
+        // If still in listening mode, Chrome ended on silence pause: restart session immediately
+        if (isListeningRef.current) {
+          if (transcriptRef.current) {
+            baseTranscriptRef.current = transcriptRef.current;
+          }
+
+          if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+          restartTimerRef.current = setTimeout(() => {
+            if (isListeningRef.current) {
+              startRecognitionInstance();
+            }
+          }, 150);
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.warn('Failed to start speech recognition instance:', err);
+      if (isListeningRef.current) {
+        if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = setTimeout(() => {
+          if (isListeningRef.current) {
+            startRecognitionInstance();
+          }
+        }, 300);
+      }
+    }
+  };
+
+  const startListening = async (deviceIdOverride) => {
+    setVoiceError(null);
+    stopMicPreview();
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceError('Speech recognition is not supported in this browser. Please try Chrome, Edge, or Safari.');
+      return;
+    }
+
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+
+    const targetDeviceId = deviceIdOverride || selectedDeviceId;
+    const audioConstraints = (targetDeviceId && targetDeviceId !== 'default')
+      ? { deviceId: { exact: targetDeviceId } }
+      : true;
+
+    // Proactively verify / request microphone permission and lock media stream to chosen device
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+        activeStreamRef.current = stream;
+        setupAudioMeter(stream);
+      } catch (err) {
+        console.warn('Microphone permission / capture error:', err);
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setVoiceError('Microphone permission blocked. Please allow microphone access in your browser address bar.');
+          return;
+        }
+      }
+    }
+
+    stopListening(false);
+
+    transcriptRef.current = '';
+    baseTranscriptRef.current = '';
+    restartCountRef.current = 0;
+    setInput('');
+    setIsListening(true);
+    isListeningRef.current = true;
+
+    startRecognitionInstance();
+
+    // Max 25s listening timeout if completely idle
+    maxDurationTimerRef.current = setTimeout(() => {
+      if (isListeningRef.current) {
+        if (transcriptRef.current.trim()) {
+          stopListening(true);
+        } else {
+          stopListening(false);
+        }
+      }
+    }, 25000);
+  };
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening(true);
+    } else {
+      startListening();
+    }
+  };
+
+  const currentMic = audioDevices.find((d) => d.deviceId === selectedDeviceId);
+  const currentMicLabel = currentMic?.label || (audioDevices.length > 0 ? audioDevices[0].label : 'Default Microphone');
+
+  const toggleTTS = () => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+    setTtsEnabled(!ttsEnabled);
+  };
+
+  const handleResetChat = () => {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    stopListening(false);
+    setMessages([
+      {
+        id: 'welcome-reset',
+        role: 'bot',
+        text: "Chat cleared! How can I assist you with municipal services or civic issues?",
+        chips: ['🚰 Water Leakage', '🛣️ Road Pothole', '🗑️ Garbage Overflow', '💡 Streetlight Fault'],
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+  };
+
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    handleSendQuery(input);
+    if (isListening) {
+      stopListening(true);
+    } else {
+      handleSendQuery(input);
+    }
   };
 
   const handleChipClick = (chipText) => {
@@ -462,21 +931,222 @@ const CivicChatbot = () => {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Voice Error Notice */}
+          {voiceError && (
+            <div className="bot-voice-error-bar">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px', color: '#991b1b' }}>
+                  <span>⚠️</span>
+                  <span>{typeof voiceError === 'object' ? voiceError.title : 'Voice Recognition Notice'}</span>
+                </div>
+                <div style={{ fontSize: '0.735rem', marginTop: '3px', lineHeight: 1.45, color: '#7f1d1d' }}>
+                  {typeof voiceError === 'object' ? voiceError.message : voiceError}
+                </div>
+                <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleUseWindowsVoiceTyping}
+                    className="bot-voice-action-btn"
+                    title="Focus text input and trigger Windows Voice Typing (Win + H)"
+                  >
+                    🎙️ Use Windows Voice Typing (Win + H)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVoiceError(null);
+                      startListening();
+                    }}
+                    className="bot-voice-action-btn secondary"
+                    title="Retry Web Speech"
+                  >
+                    🔄 Retry
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVoiceError(null)}
+                className="bot-voice-error-close"
+                title="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Windows Dictation Hint Toast */}
+          {windowsDictationHint && (
+            <div className="bot-dictation-hint">
+              <span>💡 <strong>Text Box Ready:</strong> Press <kbd>Win</kbd> + <kbd>H</kbd> now on your keyboard to speak into CivicBot!</span>
+            </div>
+          )}
+
           {/* Voice Listening Active Notification */}
           {isListening && (
             <div className="bot-listening-bar">
               <span className="listening-pulse"></span>
-              <span>Listening to your voice... Speak now</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                  {input.trim()
+                    ? `Hearing: "${input}"`
+                    : 'Listening... Speak your civic complaint now'}
+                </div>
+                <div style={{ fontSize: '0.68rem', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={currentMicLabel}>
+                    🎙️ {currentMicLabel}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      loadAudioDevices();
+                      setShowMicSettings(!showMicSettings);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      textDecoration: 'underline',
+                      color: '#b91c1c',
+                      cursor: 'pointer',
+                      padding: 0,
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    (switch mic)
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => stopListening(true)}
+                className="bot-listening-done-btn"
+                title="Finish speaking and send"
+              >
+                Send Voice
+              </button>
+            </div>
+          )}
+
+          {/* Microphone Settings & Switcher Drawer */}
+          {showMicSettings && (
+            <div className="bot-mic-drawer">
+              <div className="bot-mic-drawer-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <SlidersHorizontal size={15} style={{ color: 'var(--primary)' }} />
+                  <span>Microphone Devices & Audio Test</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowMicSettings(false)}
+                  className="bot-mic-drawer-close"
+                  title="Close Settings"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              {/* Current Active Device Chip */}
+              <div className="bot-mic-current-chip">
+                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Active Mic:</span>
+                <span className="bot-mic-name" title={currentMicLabel}>
+                  {currentMicLabel}
+                </span>
+              </div>
+
+              {/* Live Audio Level VU Meter */}
+              <div className="bot-mic-level-box">
+                <div className="bot-mic-level-header">
+                  <span>Live Input Sound Level:</span>
+                  <span style={{ fontWeight: 700, color: audioLevel > 15 ? '#16a34a' : '#64748b' }}>
+                    {audioLevel > 15 ? 'Receiving Voice 🔊' : 'Quiet / Silence 🔇'}
+                  </span>
+                </div>
+                <div className="bot-mic-meter-track">
+                  <div
+                    className="bot-mic-meter-fill"
+                    style={{
+                      width: `${Math.min(100, audioLevel)}%`,
+                      background: audioLevel > 65 ? '#ef4444' : audioLevel > 20 ? '#22c55e' : '#3b82f6'
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: '0.675rem', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                  Speak now into your microphone to verify it picks up your sound.
+                </span>
+              </div>
+
+              {/* Spoken Accent / Language Selector */}
+              <div style={{ marginBottom: '10px' }}>
+                <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '3px' }}>
+                  Recognition Dialect / Accent:
+                </span>
+                <select
+                  value={selectedLang}
+                  onChange={(e) => handleSelectLanguage(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '5px 8px',
+                    fontSize: '0.775rem',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#1e293b'
+                  }}
+                >
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.label} ({lang.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Available Audio Devices List */}
+              <div className="bot-mic-list">
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', marginBottom: '3px', display: 'block' }}>
+                  Available Microphones ({audioDevices.length || 0}):
+                </span>
+                {audioDevices.length === 0 ? (
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', padding: '4px 0' }}>
+                    No audio inputs found. Using system default.
+                  </div>
+                ) : (
+                  audioDevices.map((dev, idx) => {
+                    const isSelected = (dev.deviceId === selectedDeviceId) || (!selectedDeviceId && idx === 0);
+                    return (
+                      <label
+                        key={dev.deviceId || idx}
+                        className={`bot-mic-option ${isSelected ? 'selected' : ''}`}
+                        onClick={() => handleSelectDevice(dev.deviceId)}
+                      >
+                        <input
+                          type="radio"
+                          name="selectedMic"
+                          checked={isSelected}
+                          onChange={() => handleSelectDevice(dev.deviceId)}
+                        />
+                        <span className="bot-mic-opt-label">
+                          {dev.label || `Microphone ${idx + 1}`}
+                        </span>
+                        {isSelected && <span className="bot-mic-badge">Active</span>}
+                      </label>
+                    );
+                  })
+                )}
+              </div>
             </div>
           )}
 
           {/* Input Area */}
           <form onSubmit={handleFormSubmit} className="civic-bot-input-area">
             <input
+              ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={isListening ? 'Listening...' : 'Type complaint or query...'}
+              placeholder={isListening ? 'Listening to voice... (speak now)' : 'Type complaint or query...'}
               className="civic-bot-text-input"
             />
 
@@ -485,10 +1155,24 @@ const CivicChatbot = () => {
               type="button"
               onClick={toggleListening}
               className={`bot-mic-btn ${isListening ? 'listening' : ''}`}
-              title={isListening ? 'Stop Recording' : 'Voice Input (Speak your issue)'}
+              title={isListening ? 'Stop Recording' : `Voice Input (${currentMicLabel})`}
               aria-label="Voice Input"
             >
               {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
+
+            {/* Mic Settings & Device Switcher Button */}
+            <button
+              type="button"
+              onClick={() => {
+                loadAudioDevices();
+                setShowMicSettings(!showMicSettings);
+              }}
+              className={`bot-mic-settings-btn ${showMicSettings ? 'active' : ''}`}
+              title={`Switch Microphone (Current: ${currentMicLabel})`}
+              aria-label="Microphone Settings"
+            >
+              <SlidersHorizontal size={17} />
             </button>
 
             {/* Send Button */}
