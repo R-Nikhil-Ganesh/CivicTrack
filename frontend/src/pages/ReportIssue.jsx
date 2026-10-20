@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import MapPicker from '../components/MapPicker';
 import exifr from 'exifr';
+import { convertDMSToDD, parseXmpCoord } from '../utils/exifUtils';
 import {
   PlusCircle,
   Image,
@@ -84,40 +85,6 @@ const ReportIssue = () => {
   };
 
   const [showExifDetails, setShowExifDetails] = useState(false);
-
-  const convertDMSToDD = (dms, ref) => {
-    if (typeof dms === 'number') {
-      return ref === 'S' || ref === 'W' ? -Math.abs(dms) : Math.abs(dms);
-    }
-    if (Array.isArray(dms) && dms.length >= 3) {
-      const deg = Number(dms[0]) || 0;
-      const min = Number(dms[1]) || 0;
-      const sec = Number(dms[2]) || 0;
-      let dd = deg + min / 60 + sec / 3600;
-      if (ref === 'S' || ref === 'W') {
-        dd = -dd;
-      }
-      return Number(dd.toFixed(6));
-    }
-    return null;
-  };
-
-  const parseXmpCoord = (val) => {
-    if (typeof val === 'number') return val;
-    if (!val || typeof val !== 'string') return null;
-    const match = val.match(/([0-9.]+)[, ]+([0-9.]+)(?:[, ]+([0-9.]+))?\s*([NSEW])?/i);
-    if (match) {
-      const deg = parseFloat(match[1]) || 0;
-      const min = parseFloat(match[2]) || 0;
-      const sec = parseFloat(match[3]) || 0;
-      const ref = match[4] ? match[4].toUpperCase() : null;
-      let dd = deg + min / 60 + sec / 3600;
-      if (ref === 'S' || ref === 'W') dd = -dd;
-      return Number(dd.toFixed(6));
-    }
-    const simpleNum = parseFloat(val);
-    return isNaN(simpleNum) ? null : simpleNum;
-  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files && e.target.files[0];

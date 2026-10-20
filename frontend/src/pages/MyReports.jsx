@@ -130,7 +130,7 @@ const MyReports = () => {
                   alt={issue.title}
                   style={{ width: '80px', height: '70px', borderRadius: '8px', objectFit: 'cover' }}
                   onError={(e) => {
-                    e.target.src = 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&auto=format&fit=crop&q=60';
+                    e.target.src = '/demo/road_crater.webp';
                   }}
                 />
                 <div>

@@ -43,7 +43,7 @@ const issueSchema = new mongoose.Schema(
     },
     imageUrl: {
       type: String,
-      default: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&auto=format&fit=crop&q=60',
+      default: '/uploads/road_crater.webp',
     },
     location: {
       address: {
@@ -93,19 +93,21 @@ const issueSchema = new mongoose.Schema(
 );
 
 issueSchema.pre('save', function (next) {
-  if (this.isNew && (!this.assignedDepartment || this.assignedDepartment === 'General')) {
-    const categoryMap = {
-      Roads: 'Roads',
-      'Water Supply': 'Water Supply',
-      'Waste Management': 'Waste Management',
-      Electricity: 'Electricity',
-      Other: 'General',
-    };
-    this.assignedDepartment = categoryMap[this.category] || 'General';
+  if (this.isNew) {
+    if (!this.assignedDepartment || this.assignedDepartment === 'General') {
+      const categoryMap = {
+        Roads: 'Roads',
+        'Water Supply': 'Water Supply',
+        'Waste Management': 'Waste Management',
+        Electricity: 'Electricity',
+        Other: 'General',
+      };
+      this.assignedDepartment = categoryMap[this.category] || 'General';
+    }
 
     if (this.statusHistory.length === 0) {
       this.statusHistory.push({
-        status: 'Pending',
+        status: this.status || 'Pending',
         updatedBy: this.reportedBy,
         comment: 'Issue reported and lodged into civic tracking system',
         updatedAt: new Date(),

@@ -85,11 +85,11 @@ export const createIssue = async (req, res, next) => {
       finalImageUrl = `/uploads/${req.file.filename}`;
     } else if (!finalImageUrl || finalImageUrl.trim() === '') {
       const sampleImages = {
-        Roads: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=600&auto=format&fit=crop&q=60',
-        'Water Supply': 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=60',
-        'Waste Management': 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=600&auto=format&fit=crop&q=60',
-        Electricity: 'https://images.unsplash.com/photo-1544724569-5f546fd6f2b5?w=600&auto=format&fit=crop&q=60',
-        Other: 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?w=600&auto=format&fit=crop&q=60',
+        Roads: '/uploads/road_crater.webp',
+        'Water Supply': '/uploads/underground_pipe_leakage.avif',
+        'Waste Management': '/uploads/overflowing_garbage.jpg',
+        Electricity: '/uploads/dark_streetlights.avif',
+        Other: '/uploads/road_crater.webp',
       };
       finalImageUrl = sampleImages[category] || sampleImages.Other;
     }

@@ -92,7 +92,7 @@ const seedData = async () => {
         description: 'Large dangerous pothole right near the main junction. Multiple two-wheeler riders have skidded during rainy evenings. Urgent asphalt repair needed.',
         category: 'Roads',
         assignedDepartment: 'Roads',
-        imageUrl: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800&auto=format&fit=crop&q=60',
+        imageUrl: '/uploads/road_crater.webp',
         location: {
           address: '4th Main Road, Near Central Bus Stop, Indiranagar',
           latitude: 12.9784,
@@ -122,7 +122,7 @@ const seedData = async () => {
         description: 'Clean drinking water gushing onto the road since early morning from a cracked pipeline joint. Road is waterlogged and household pressure has dropped.',
         category: 'Water Supply',
         assignedDepartment: 'Water Supply',
-        imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=60',
+        imageUrl: '/uploads/underground_pipe_leakage.avif',
         location: {
           address: 'Cross 7, Market Road, Near City Hospital',
           latitude: 12.9698,
@@ -146,7 +146,7 @@ const seedData = async () => {
         description: 'Municipal garbage bin has not been cleared for 4 days. Waste is spilling over pedestrian walkway with foul odor.',
         category: 'Waste Management',
         assignedDepartment: 'Waste Management',
-        imageUrl: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&auto=format&fit=crop&q=60',
+        imageUrl: '/uploads/overflowing_garbage.jpg',
         location: {
           address: 'Sector 2, Colony Park Entrance, MG Road',
           latitude: 12.9734,
@@ -182,7 +182,7 @@ const seedData = async () => {
         description: '5 street poles are completely dark along the park bypass road. Safety hazard for evening pedestrians.',
         category: 'Electricity',
         assignedDepartment: 'Electricity',
-        imageUrl: 'https://images.unsplash.com/photo-1544724569-5f546fd6f2b5?w=800&auto=format&fit=crop&q=60',
+        imageUrl: '/uploads/dark_streetlights.avif',
         location: {
           address: 'Bypass Avenue, Beside Green Valley Park',
           latitude: 12.9812,
