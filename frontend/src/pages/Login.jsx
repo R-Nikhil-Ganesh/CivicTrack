@@ -131,7 +131,7 @@ const Login = () => {
           }}
         >
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span>⚡ 1-Click Demo Credentials</span>
+            <span></span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
             <button
